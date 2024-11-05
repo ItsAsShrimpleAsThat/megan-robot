@@ -34,6 +34,7 @@ void loop()
 {
   if(running)
   {
+    /*
     setMotor(back_left, topSpeed * 0.5);
     setMotor(back_right, topSpeed * 0.5);
     setMotor(front_left, topSpeed * 0.5);
@@ -59,6 +60,13 @@ void loop()
     setMotor(back_right, topSpeed);
     setMotor(front_left, topSpeed);
     setMotor(front_right, -topSpeed);
+    delay(1000);
+    */
+
+    setMotor(back_left, topSpeed * 0.5);
+    setMotor(back_right, topSpeed * 0.5);
+    setMotor(front_left, topSpeed * 0.5);
+    setMotor(front_right, topSpeed * 0.5);
     delay(1000);
   }
   else

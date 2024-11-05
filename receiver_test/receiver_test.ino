@@ -18,7 +18,7 @@ void setup()
 
 void loop()
 {
-    uint16_t data;
+    uint32_t data;
     uint8_t datalen = sizeof(data);
 
     if (driver.recv((uint8_t*)&data, &datalen)) // Non-blocking
