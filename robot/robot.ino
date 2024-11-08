@@ -1,4 +1,11 @@
+#include <RH_ASK.h>
+#include <SPI.h> // Not actually used but needed to compile
+
 bool running = true;
+
+// Radio/Controller Settings
+RH_ASK driver(3000, 49, 2, 4); 
+uint64_t mask = 0b1111111111;
 
 // Motor settings
 double motorDeadzone = 0.55;
@@ -26,7 +33,15 @@ void setup()
   setPinModes();
   setMotorsZero();
 
-  analogWrite(5, 60);
+  if(!driver.init())
+  {
+    Serial.println("rh reciever init failed");
+  }
+  else
+  {
+    Serial.println("it fucking worked");
+  }
+
   delay(2000);
 }
 
@@ -62,12 +77,6 @@ void loop()
     setMotor(front_right, -topSpeed);
     delay(1000);
     */
-
-    setMotor(back_left, topSpeed * 0.5);
-    setMotor(back_right, topSpeed * 0.5);
-    setMotor(front_left, topSpeed * 0.5);
-    setMotor(front_right, topSpeed * 0.5);
-    delay(1000);
   }
   else
   {
@@ -77,10 +86,30 @@ void loop()
     setMotor(front_right, 0.0);
   }
   running = false;
+
+  uint64_t data;
+  uint8_t datalen = sizeof(data);
+
+  if (driver.recv((uint8_t*)&data, &datalen)) // Non-blocking
+  {
+	  // Message with a good checksum received, dump it.  
+    Serial.print("X Axis: ");
+    Serial.print(getAxis(data, 0));
+    Serial.print(" Y Axis: ");
+    Serial.println(getAxis(data, 1));
+  }
+}
+
+int getAxis(uint64_t data, uint8_t axis)
+{
+  return mask & (data >> (10 * axis));
 }
 
 void setPinModes()
 {
+  // Radio
+  pinMode(49, INPUT);
+
   // Drive motor PWM
   pinMode(2, OUTPUT);
   pinMode(3, OUTPUT);
