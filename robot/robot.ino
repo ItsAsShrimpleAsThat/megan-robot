@@ -4,7 +4,7 @@
 bool running = true;
 
 // Radio/Controller Settings
-RH_ASK driver(3000, 49, 2, 4); 
+RH_ASK driver(4000, 49, 2, 4); 
 short mask = 0b1111111111;
 
 // Motor settings
@@ -26,7 +26,7 @@ struct MotorPorts back_right {51, 50, 5};
 
 // Controller inputs
 unsigned long controlExpirationTimer = 0;
-short controlLifetime = 10; // Milliseconds until a control times out (Sets all controls to 0 after this many milliseconds)
+short controlLifetime = 500; // Milliseconds until a control times out (Sets all controls to 0 after this many milliseconds)
 
 short leftStickX = 0;
 short leftStickY = 0;
@@ -46,14 +46,12 @@ void setup()
   {
     Serial.println("it fucking worked");
   }
-
-  delay(2000);
 }
 
 void loop() 
 {
   // Get controller inputs from radio
-  uint64_t data;
+  uint32_t data;
   uint8_t datalen = sizeof(data);
 
   if (driver.recv((uint8_t*)&data, &datalen)) // Non-blocking
@@ -75,11 +73,11 @@ void loop()
     leftStickY = 0;
   }
 
-  Serial.print("X Axis: ");
+  Serial.print("X: ");
   Serial.print(leftStickX);
-  Serial.print(" Y Axis: ");
+  Serial.print(" Y: ");
   Serial.print(leftStickY);
-  Serial.print(" Delta time: ");
+  Serial.print(" D: ");
   Serial.println(millis() - controlExpirationTimer);
 
   if(running)
@@ -93,6 +91,7 @@ void loop()
     setMotor(front_left, 0);
     setMotor(front_right, 0);
   }
+  delay(16);
 }
 
 short getAxis(uint64_t data, uint8_t axis)
