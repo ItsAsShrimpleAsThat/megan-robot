@@ -5,15 +5,13 @@ bool running = true;
 
 // Radio/Controller Settings
 RH_ASK driver(3000, 49, 2, 4); 
-uint64_t mask = 0b1111111111;
+short mask = 0b1111111111;
 
 // Motor settings
 double motorDeadzone = 0.55;
 double topSpeed = 1.0; //relative to 1.0 being max
 
 // Motor ports
-int motor_ports_mask = 127;
-
 struct MotorPorts
 {
   short a;
@@ -25,6 +23,13 @@ struct MotorPorts front_left {23, 22, 2};
 struct MotorPorts front_right {52, 53, 6};
 struct MotorPorts back_left {25, 24, 3};
 struct MotorPorts back_right {51, 50, 5};
+
+// Controller inputs
+unsigned long controlExpirationTimer = 0;
+short controlLifetime = 10; // Milliseconds until a control times out (Sets all controls to 0 after this many milliseconds)
+
+short leftStickX = 0;
+short leftStickY = 0;
 
 void setup() 
 {
@@ -47,62 +52,52 @@ void setup()
 
 void loop() 
 {
-  if(running)
-  {
-    /*
-    setMotor(back_left, topSpeed * 0.5);
-    setMotor(back_right, topSpeed * 0.5);
-    setMotor(front_left, topSpeed * 0.5);
-    setMotor(front_right, topSpeed * 0.5);
-    delay(1000);
-    stopAllDrivingMotors();
-    delay(300);
-    setMotor(back_left, topSpeed);
-    setMotor(back_right, -topSpeed);
-    setMotor(front_left, -topSpeed);
-    setMotor(front_right, topSpeed);
-    delay(1000);
-    stopAllDrivingMotors();
-    delay(300);
-    setMotor(back_left, -topSpeed * 0.5);
-    setMotor(back_right, -topSpeed * 0.5);
-    setMotor(front_left, -topSpeed * 0.5);
-    setMotor(front_right, -topSpeed * 0.5);
-    delay(1000);
-    stopAllDrivingMotors();
-    delay(300);
-    setMotor(back_left, -topSpeed);
-    setMotor(back_right, topSpeed);
-    setMotor(front_left, topSpeed);
-    setMotor(front_right, -topSpeed);
-    delay(1000);
-    */
-  }
-  else
-  {
-    setMotor(back_left, 0.0);
-    setMotor(back_right, 0.0);
-    setMotor(front_left, 0.0);
-    setMotor(front_right, 0.0);
-  }
-  running = false;
-
+  // Get controller inputs from radio
   uint64_t data;
   uint8_t datalen = sizeof(data);
 
   if (driver.recv((uint8_t*)&data, &datalen)) // Non-blocking
   {
-	  // Message with a good checksum received, dump it.  
-    Serial.print("X Axis: ");
-    Serial.print(getAxis(data, 0));
-    Serial.print(" Y Axis: ");
-    Serial.println(getAxis(data, 1));
+	  // Message with a good checksum received  
+
+    // Reset Expiration timer
+    controlExpirationTimer = millis();
+
+    // Get sticks
+    leftStickX = getAxis(data, 0);
+    leftStickY = getAxis(data, 1);
+  }
+
+  // Reset controls to zero if the last receieved control has expired
+  if(millis() - controlExpirationTimer > controlLifetime)
+  {
+    leftStickX = 0;
+    leftStickY = 0;
+  }
+
+  Serial.print("X Axis: ");
+  Serial.print(leftStickX);
+  Serial.print(" Y Axis: ");
+  Serial.print(leftStickY);
+  Serial.print(" Delta time: ");
+  Serial.println(millis() - controlExpirationTimer);
+
+  if(running)
+  {
+    
+  }
+  else
+  {
+    setMotor(back_left, 0);
+    setMotor(back_right, 0);
+    setMotor(front_left, 0);
+    setMotor(front_right, 0);
   }
 }
 
-int getAxis(uint64_t data, uint8_t axis)
+short getAxis(uint64_t data, uint8_t axis)
 {
-  return mask & (data >> (10 * axis));
+  return mask & short((data >> (10 * axis)));
 }
 
 void setPinModes()
@@ -146,9 +141,9 @@ void setMotorsZero()
   digitalWrite(25, LOW);
 }
 
-void setMotor(MotorPorts motor, double speed)
+void setMotor(MotorPorts motor, short speed)
 {
-  if(speed > 0.0)
+  if(speed > 0)
   {
     digitalWrite(motor.a, HIGH);
     digitalWrite(motor.b, LOW);
@@ -159,13 +154,13 @@ void setMotor(MotorPorts motor, double speed)
     digitalWrite(motor.b, HIGH);
   }
 
-  analogWrite(motor.pwm, abs(int(speed * 255)));
+  analogWrite(motor.pwm, abs(speed));
 }
 
 void stopAllDrivingMotors()
 {
-  setMotor(back_left, 0.0);
-  setMotor(back_right, 0.0);
-  setMotor(front_left, 0.0);
-  setMotor(front_right, 0.0);
+  setMotor(back_left, 0);
+  setMotor(back_right, 0);
+  setMotor(front_left, 0);
+  setMotor(front_right, 0);
 }
