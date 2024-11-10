@@ -9,7 +9,7 @@ short mask = 0b1111111111;
 
 // Motor settings
 double motorDeadzone = 0.55;
-double topSpeed = 1.0; //relative to 1.0 being max
+double topSpeed = 128; //relative to 256 being max
 
 // Motor ports
 struct MotorPorts
@@ -26,10 +26,12 @@ struct MotorPorts back_right {51, 50, 5};
 
 // Controller inputs
 unsigned long controlExpirationTimer = 0;
-short controlLifetime = 500; // Milliseconds until a control times out (Sets all controls to 0 after this many milliseconds)
+short controlLifetime = 80; // Milliseconds until a control times out (Sets all controls to 0 after this many milliseconds)
 
-short leftStickX = 0;
-short leftStickY = 0;
+// Joysticks
+short forward = 0;
+short sideways = 0;
+short zRotation = 0;
 
 void setup() 
 {
@@ -50,11 +52,15 @@ void setup()
 
 void loop() 
 {
-  // Get controller inputs from radio
-  uint32_t data;
-  uint8_t datalen = sizeof(data);
+  // === Get controller inputs from radio ===
+  struct // Data from radio is packed into 32 + 16 bits
+  {
+    uint32_t _data1;
+    uint16_t _data2;
+  } packedData;
+  uint8_t datalen = sizeof(packedData);
 
-  if (driver.recv((uint8_t*)&data, &datalen)) // Non-blocking
+  if (driver.recv((uint8_t*)&packedData, &datalen)) // Non-blocking
   {
 	  // Message with a good checksum received  
 
@@ -62,27 +68,35 @@ void loop()
     controlExpirationTimer = millis();
 
     // Get sticks
-    leftStickX = getAxis(data, 0);
-    leftStickY = getAxis(data, 1);
+    sideways = -getAxis(packedData._data1, 0);
+    forward = getAxis(packedData._data1, 1);
   }
 
   // Reset controls to zero if the last receieved control has expired
   if(millis() - controlExpirationTimer > controlLifetime)
   {
-    leftStickX = 0;
-    leftStickY = 0;
+    sideways = 0;
+    forward = 0;
   }
 
   Serial.print("X: ");
-  Serial.print(leftStickX);
+  Serial.print(sideways);
   Serial.print(" Y: ");
-  Serial.print(leftStickY);
+  Serial.print(forward);
   Serial.print(" D: ");
   Serial.println(millis() - controlExpirationTimer);
 
+  short frontLeftSpeed = forward - sideways + zRotation;
+  short frontRightSpeed = forward + sideways - zRotation;
+  short backLeftSpeed = forward + sideways + zRotation;
+  short backRightSpeed = forward - sideways - zRotation;
+
   if(running)
   {
-    
+    setMotor(front_left, frontLeftSpeed);
+    setMotor(front_right, frontRightSpeed);
+    setMotor(back_left, backLeftSpeed);
+    setMotor(back_right, backRightSpeed);
   }
   else
   {
@@ -94,9 +108,9 @@ void loop()
   delay(16);
 }
 
-short getAxis(uint64_t data, uint8_t axis)
+short getAxis(uint32_t data, uint8_t axis)
 {
-  return mask & short((data >> (10 * axis)));
+  return (mask & short((data >> (10 * axis)))) - 512;
 }
 
 void setPinModes()

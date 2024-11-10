@@ -26,18 +26,27 @@ void setup()
 
 void loop()
 {
-  //                   10 bits                     |  10 bits                               |  10 bits                                  |  10 bits                   
-  //                   left stick X                |  left stick Y                          |  right stick X                            |  right stick Y             
-  uint32_t      data = analogRead(leftX)           | ((uint64_t)analogRead(leftY) << 10)    | (uint64_t)(analogRead(rightX) << 20);   //| ((uint64_t)analogRead(rightY) << 30)
-  //                |  1 bit                       |  1 bit                       |  1 bit                       |  1 bit
-  //                |  face button 1               |  face button 2               |  face button 3               |  face button 4
-//                    | (digitalRead(button1) << 40) | (digitalRead(button2) << 41) | (digitalRead(button3) << 42) | (digitalRead(button4) << 43)
-  //                |  1 bit                       |  1 bit                       |  1 bit                       |  1 bit
-  //                |  face button 1               |  face button 2               |  face button 3               |  face button 4
-//                    | (digitalRead(button5) << 44) | (digitalRead(button6) << 45) | (digitalRead(button7) << 46) | (digitalRead(button8) << 47);
+  // Pack data into 48 bits
+  struct
+  {
+    uint32_t _data1;
+    uint16_t _data2;
+  } packedData;
 
-  uint32_t grink = (data >> 10) & 0b1111111111;
-  Serial.println((unsigned long)grink);
-  driver.send((uint8_t *)&data, sizeof(data));  
+  //                   10 bits                     |  10 bits                               |  10 bits
+  //                   left stick X                |  left stick Y                          |  right stick X
+  packedData._data1  = analogRead(leftX)           | ((uint64_t)analogRead(leftY) << 10)    | (uint64_t)(analogRead(rightX) << 20)
+  //                |  1 bit                       |  1 bit
+  //                |  face button 1               |  face button 2               
+                    | (digitalRead(button1) << 30) | (digitalRead(button2) << 31);
+  //           --------------------------------------------------------------------------------------------------------------------------
+  //                   10 bits                     |  1 bit                                 |  1 bit
+  //                   right stick Y               |  face button 3                         |  face button 4
+  packedData._data2  = analogRead(rightY)          | (digitalRead(button3) << 10)           | (digitalRead(button4) << 11)
+  //                |  1 bit                       |  1 bit                                 |  1 bit                       |  1 bit
+  //                |  face button 1               |  face button 2                         |  face button 3               |  face button 4
+                    | (digitalRead(button5) << 12) | (digitalRead(button6) << 13)           | (digitalRead(button7) << 14) | (digitalRead(button8) << 15);
+
+  driver.send((uint8_t *)&packedData, sizeof(packedData));  
   driver.waitPacketSent();
 }
